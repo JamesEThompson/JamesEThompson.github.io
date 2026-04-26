@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>F-35 Flight Sim — ESP32 FreeRTOS · JamesEThompson</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:     #080c10;
+      --panel:  #0d1520;
+      --border: #1a2f4a;
+      --accent: #00c8ff;
+      --red:    #ff4a00;
+      --green:  #00ff88;
+      --text:   #c8dce8;
+      --muted:  #4a6478;
+      --glow:   0 0 20px rgba(0,200,255,0.3);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-weight:300; line-height:1.7; overflow-x:hidden; }
+    body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px); pointer-events:none; z-index:999; }
+    .grid-bg { position:fixed; inset:0; background-image:linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; }
+
+    nav { position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:0 40px; height:56px; background:rgba(8,12,16,0.93); border-bottom:1px solid var(--border); backdrop-filter:blur(12px); }
+    .nav-logo { font-family:'Orbitron',monospace; font-size:12px; font-weight:700; color:var(--accent); letter-spacing:0.15em; }
+    .nav-links { display:flex; gap:28px; }
+    .nav-links a { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--muted); text-decoration:none; transition:color 0.2s; }
+    .nav-links a:hover { color:var(--accent); }
+
+    .hero { position:relative; z-index:1; min-height:92vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:80px 24px 60px; }
+    .hero::before { content:''; position:absolute; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(0,200,255,0.07) 0%,transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); animation:pulse 4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1} 50%{transform:translate(-50%,-50%) scale(1.2);opacity:0.5} }
+    .hero-tag { font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:0.25em; color:var(--accent); margin-bottom:18px; animation:fadeUp 0.6s ease both; }
+    .hero h1 { font-family:'Orbitron',monospace; font-size:clamp(28px,6vw,68px); font-weight:900; color:#fff; text-shadow:0 0 40px rgba(0,200,255,0.4); margin-bottom:16px; animation:fadeUp 0.6s 0.1s ease both; }
+    .hero h1 span { color:var(--accent); }
+    .hero-sub { font-size:15px; color:var(--muted); max-width:520px; margin-bottom:36px; animation:fadeUp 0.6s 0.2s ease both; }
+    .hero-badges { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; animation:fadeUp 0.6s 0.3s ease both; }
+    .badge { font-family:'Share Tech Mono',monospace; font-size:11px; padding:4px 12px; border:1px solid var(--border); border-radius:2px; color:var(--muted); letter-spacing:0.08em; }
+    .badge.a { border-color:var(--accent); color:var(--accent); }
+    .badge.r { border-color:var(--red); color:var(--red); }
+    .badge.g { border-color:var(--green); color:var(--green); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    section { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:72px 24px; }
+    .sec-label { font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:0.25em; color:var(--accent); margin-bottom:10px; }
+    h2 { font-family:'Orbitron',monospace; font-size:clamp(18px,3vw,26px); font-weight:700; color:#fff; margin-bottom:28px; }
+    hr.div { border:none; border-top:1px solid var(--border); }
+
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:28px; position:relative; overflow:hidden; transition:border-color 0.2s,box-shadow 0.2s; }
+    .card:hover { border-color:var(--accent); box-shadow:var(--glow); }
+    .card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:var(--accent); }
+    .card.r::before { background:var(--red); }
+    .card.g::before { background:var(--green); }
+    .card h3 { font-family:'Orbitron',monospace; font-size:13px; font-weight:700; color:#fff; margin-bottom:10px; }
+    .card p { font-size:14px; color:var(--text); line-height:1.75; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media(max-width:600px){ .grid2{grid-template-columns:1fr} }
+    .full-desc { background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:36px; margin-bottom:28px; }
+    .full-desc p { font-size:15px; line-height:1.85; margin-bottom:14px; }
+    .full-desc p:last-child { margin-bottom:0; }
+
+    /* YOUTUBE TOOL */
+    .yt-tool { background:var(--panel); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+    .yt-tool-hdr { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; }
+    .yt-icon { font-size:22px; color:#ff0000; line-height:1; }
+    .yt-tool-hdr h3 { font-family:'Orbitron',monospace; font-size:13px; color:#fff; }
+    .yt-tool-hdr p { font-size:12px; color:var(--muted); margin-top:2px; }
+    .video-placeholder { aspect-ratio:16/9; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(135deg,#0d1520,#0a1828); gap:14px; padding:40px; }
+    .play-ring { width:68px; height:68px; border-radius:50%; border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; box-shadow:var(--glow); }
+    .play-ring svg { fill:var(--accent); margin-left:4px; }
+    .vp-title { font-family:'Share Tech Mono',monospace; font-size:14px; color:var(--text); }
+    .vp-sub { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); text-align:center; line-height:1.7; }
+    .video-embed-frame { aspect-ratio:16/9; display:none; }
+    .video-embed-frame iframe { width:100%; height:100%; border:none; display:block; }
+    .yt-success { display:none; padding:12px 24px; background:rgba(0,255,136,0.06); border-top:1px solid rgba(0,255,136,0.2); font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--green); }
+    .yt-input-row { padding:20px 24px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .yt-input { flex:1; min-width:240px; background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:10px 14px; font-family:'Share Tech Mono',monospace; font-size:13px; color:var(--text); outline:none; transition:border-color 0.2s; }
+    .yt-input:focus { border-color:var(--accent); }
+    .yt-input::placeholder { color:var(--muted); }
+    .yt-btn { background:var(--accent); color:#000; border:none; border-radius:3px; padding:10px 20px; font-family:'Share Tech Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.08em; cursor:pointer; transition:opacity 0.2s; white-space:nowrap; }
+    .yt-btn:hover { opacity:0.85; }
+    .yt-hint { padding:0 24px 18px; font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); }
+    .yt-hint span { color:var(--accent); }
+
+    /* LED DEMO */
+    .led-demo { display:flex; gap:16px; align-items:center; margin-bottom:24px; flex-wrap:wrap; }
+    .led { width:13px; height:13px; border-radius:50%; }
+    .led.g { background:var(--green); box-shadow:0 0 10px var(--green); animation:blink-fast 0.1s step-end infinite; }
+    .led.r { background:var(--red); box-shadow:0 0 10px var(--red); animation:blink-slow 1.2s ease-in-out infinite; }
+    .led-lbl { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); }
+    @keyframes blink-fast { 0%,49%{opacity:1} 50%,100%{opacity:0.1} }
+    @keyframes blink-slow { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+    /* CODE TOOL */
+    .code-tool { background:var(--panel); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+    .code-hdr { padding:18px 24px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .code-hdr h3 { font-family:'Orbitron',monospace; font-size:13px; color:#fff; }
+    .code-hdr p { font-size:12px; color:var(--muted); margin-top:2px; }
+    .ctabs { display:flex; gap:4px; }
+    .ctab { font-family:'Share Tech Mono',monospace; font-size:11px; padding:5px 14px; border:1px solid var(--border); border-radius:2px; background:transparent; color:var(--muted); cursor:pointer; transition:all 0.2s; }
+    .ctab.active { border-color:var(--accent); color:var(--accent); background:rgba(0,200,255,0.06); }
+    .cpanel { padding:16px; }
+    .code-ta { width:100%; min-height:280px; background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:16px; font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--text); line-height:1.75; resize:vertical; outline:none; transition:border-color 0.2s; }
+    .code-ta:focus { border-color:var(--accent); }
+    .code-ta::placeholder { color:var(--muted); }
+    .cactions { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+    .btn-save { background:var(--accent); color:#000; border:none; border-radius:3px; padding:9px 18px; font-family:'Share Tech Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; cursor:pointer; transition:opacity 0.2s; }
+    .btn-save:hover { opacity:0.85; }
+    .btn-clear { background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:3px; padding:9px 18px; font-family:'Share Tech Mono',monospace; font-size:12px; cursor:pointer; transition:all 0.2s; }
+    .btn-clear:hover { border-color:var(--red); color:var(--red); }
+    .csaved { display:none; margin-top:8px; padding:8px 14px; background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.15); border-radius:3px; font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--green); }
+    .cdisplay { display:none; margin-top:12px; background:var(--bg); border:1px solid var(--border); border-radius:3px; overflow:hidden; }
+    .cdisplay-bar { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; border-bottom:1px solid var(--border); font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); }
+    .btn-copy { background:transparent; color:var(--accent); border:1px solid var(--border); border-radius:2px; padding:3px 10px; font-family:'Share Tech Mono',monospace; font-size:11px; cursor:pointer; transition:all 0.2s; }
+    .btn-copy:hover { background:rgba(0,200,255,0.1); }
+    pre.crendered { padding:18px; font-family:'Share Tech Mono',monospace; font-size:12px; line-height:1.75; color:var(--text); overflow-x:auto; white-space:pre; max-height:380px; overflow-y:auto; }
+
+    /* HW TABLE */
+    .hw-wrap { background:var(--panel); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-family:'Share Tech Mono',monospace; font-size:13px; }
+    th { text-align:left; padding:10px 16px; color:var(--muted); border-bottom:1px solid var(--border); font-weight:400; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; }
+    td { padding:11px 16px; border-bottom:1px solid rgba(26,47,74,0.4); }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(0,200,255,0.025); }
+    .pin { color:var(--accent); }
+
+    /* TASK ROWS */
+    .task-grid { display:flex; flex-direction:column; gap:8px; }
+    .task-row { display:grid; grid-template-columns:150px 55px 90px 70px 1fr; gap:14px; align-items:center; background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:12px 18px; font-family:'Share Tech Mono',monospace; font-size:12px; transition:border-color 0.2s; }
+    .task-row:hover { border-color:var(--accent); }
+    .task-row.hdr { background:transparent; border-color:transparent; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.08em; padding-bottom:2px; }
+    .tn { color:#fff; font-weight:700; }
+    .tp { color:var(--accent); text-align:center; }
+    .tt.hard { color:var(--red); }
+    .tt.soft { color:var(--green); }
+    .tdesc { color:var(--muted); font-size:11px; }
+    @media(max-width:680px){ .task-row{grid-template-columns:1fr 1fr} .task-row.hdr{display:none} }
+
+    footer { position:relative; z-index:1; border-top:1px solid var(--border); padding:28px 40px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+    footer p { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--muted); }
+    .fl { display:flex; gap:24px; }
+    .fl a { font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--muted); text-decoration:none; transition:color 0.2s; }
+    .fl a:hover { color:var(--accent); }
+  </style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<nav>
+  <div class="nav-logo">F-35 // ESP32 FLIGHT SIM</div>
+  <div class="nav-links">
+    <a href="#about">About</a>
+    <a href="#demo">Demo</a>
+    <a href="#code">Code</a>
+    <a href="#hardware">Hardware</a>
+    <a href="#tasks">Tasks</a>
+    <a href="https://github.com/JamesEThompson/JamesEThompson.github.io" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-tag">// Northrop Grumman · Orlando, FL · Aerospace Simulation</div>
+  <h1>F-35 <span>Flight Sim</span><br>on ESP32</h1>
+  <p class="hero-sub">A real-time embedded system simulating fighter jet weapon controls and altitude warning — built with FreeRTOS on an ESP32 microcontroller.</p>
+  <div class="hero-badges">
+    <span class="badge a">FreeRTOS</span>
+    <span class="badge a">ESP32</span>
+    <span class="badge">4 Tasks</span>
+    <span class="badge r">Hard Deadlines</span>
+    <span class="badge g">Wokwi Simulated</span>
+    <span class="badge">Spring 2026 · UCF</span>
+  </div>
+</div>
+
+<hr class="div">
+
+<section id="about">
+  <div class="sec-label">// 01 — Project Description</div>
+  <h2>What This Project Does</h2>
+  <div class="full-desc">
+    <p>This project simulates the real-time control systems found inside a modern fighter jet — specifically inspired by avionics and weapon management systems used in programs like Northrop Grumman's aerospace work in Orlando, Florida. It runs on an ESP32 microcontroller using FreeRTOS, the same real-time operating system used in safety-critical embedded systems across aerospace and defense.</p>
+    <p>The system has two weapon controls: a <strong style="color:#fff;">missile button</strong> that fires a single weapon (one LED flash), and a <strong style="color:#fff;">machine gun button</strong> that simulates a cannon burst (12 rapid LED flashes). A <strong style="color:#fff;">potentiometer acts as an altimeter</strong> — turn it below 25% and a red LED activates alongside repeated altitude warnings in the serial monitor, just like a real aircraft's ground proximity warning system.</p>
+    <p>Each feature runs as its own FreeRTOS task with a defined priority and deadline. Weapon response tasks are <strong style="color:#ff4a00;">Hard real-time</strong> — a missed deadline means a failed weapon system. The altitude monitor is <strong style="color:#00ff88;">Soft real-time</strong> — a slight delay is annoying but not catastrophic. This mirrors how real aerospace engineers classify requirements.</p>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>🎯 Missile Fire</h3><p>Press the green button and the weapon LED lights for 300 ms — one missile away. A binary semaphore ensures the button task and LED task never conflict.</p></div>
+    <div class="card r"><h3>🔫 Machine Gun Burst</h3><p>Press the yellow button for 12 rapid LED flashes simulating cannon rounds. Execution time varies with burst length — a true variable-time FreeRTOS task.</p></div>
+    <div class="card g"><h3>⚠️ Altitude Warning</h3><p>Turn the potentiometer low and the red LED activates. The serial monitor floods with ALTITUDE warnings — just like a GPWS in a real cockpit.</p></div>
+    <div class="card"><h3>🔧 Built With FreeRTOS</h3><p>Four concurrent tasks run simultaneously on the ESP32, each with defined priorities so critical systems always preempt lower-priority ones.</p></div>
+  </div>
+</section>
+
+<hr class="div">
+
+<section id="demo">
+  <div class="sec-label">// 02 — Demo Video</div>
+  <h2>See It In Action</h2>
+
+  <div class="led-demo">
+    <div class="led g"></div><span class="led-lbl">WEAPON LED — gun burst active</span>
+    <div style="width:20px"></div>
+    <div class="led r"></div><span class="led-lbl">ALTITUDE LED — warning active</span>
+  </div>
+
+  <div class="yt-tool">
+    <div class="yt-tool-hdr">
+      <span class="yt-icon">▶</span>
+      <div>
+        <h3>EMBED YOUR YOUTUBE VIDEO</h3>
+        <p>Paste your YouTube link below — no HTML editing needed</p>
+      </div>
+    </div>
+
+    <!-- video display -->
+    <div id="vidPlaceholder" class="video-placeholder">
+      <div class="play-ring">
+        <svg width="26" height="26" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <p class="vp-title">YOUR DEMO VIDEO WILL APPEAR HERE</p>
+      <p class="vp-sub">1. Upload your Wokwi recording to YouTube<br>2. Paste the link in the box below and click EMBED</p>
+    </div>
+    <div class="video-embed-frame" id="vidFrame">
+      <iframe id="ytIframe" src="" title="F-35 ESP32 Flight Sim Demo"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen></iframe>
+    </div>
+    <div class="yt-success" id="ytSuccess">✓ VIDEO EMBEDDED — your demo is now live on this page</div>
+
+    <div class="yt-input-row">
+      <input class="yt-input" id="ytInput" type="text"
+        placeholder="Paste your YouTube URL here — e.g. https://youtube.com/watch?v=XXXXXXXXXXX" />
+      <button class="yt-btn" onclick="embedVideo()">EMBED VIDEO</button>
+    </div>
+    <div class="yt-hint">
+      Get your link: YouTube → your video → <span>Share → Copy Link</span> &nbsp;·&nbsp; Works with youtube.com/watch, youtu.be, and direct video IDs
+    </div>
+  </div>
+</section>
+
+<hr class="div">
+
+<section id="code">
+  <div class="sec-label">// 03 — Project Code</div>
+  <h2>ESP32 Source Code</h2>
+
+  <div class="code-tool">
+    <div class="code-hdr">
+      <div>
+        <h3>PASTE YOUR CODE FROM WOKWI</h3>
+        <p>Copy each file from Wokwi and paste it here — it will display formatted on your site</p>
+      </div>
+      <div class="ctabs">
+        <button class="ctab active" id="tab-sketch" onclick="switchTab('sketch')">sketch.ino</button>
+        <button class="ctab" id="tab-diagram" onclick="switchTab('diagram')">diagram.json</button>
+      </div>
+    </div>
+
+    <!-- sketch tab -->
+    <div class="cpanel" id="cpanel-sketch">
+      <textarea class="code-ta" id="ta-sketch"
+        placeholder="// Step 1: Open your Wokwi project&#10;// Step 2: Click the sketch.ino tab&#10;// Step 3: Select All (Ctrl+A) and Copy (Ctrl+C)&#10;// Step 4: Click here and Paste (Ctrl+V)&#10;// Step 5: Click SAVE &amp; DISPLAY below"></textarea>
+      <div class="cactions">
+        <button class="btn-save" onclick="saveCode('sketch')">SAVE &amp; DISPLAY</button>
+        <button class="btn-clear" onclick="clearCode('sketch')">CLEAR</button>
+      </div>
+      <div class="csaved" id="saved-sketch">✓ sketch.ino saved and displayed below</div>
+      <div class="cdisplay" id="cdisplay-sketch">
+        <div class="cdisplay-bar">
+          <span>sketch.ino</span>
+          <button class="btn-copy" onclick="copyCode('sketch')">COPY CODE</button>
+        </div>
+        <pre class="crendered" id="cren-sketch"></pre>
+      </div>
+    </div>
+
+    <!-- diagram tab -->
+    <div class="cpanel" id="cpanel-diagram" style="display:none">
+      <textarea class="code-ta" id="ta-diagram"
+        placeholder="// Step 1: Open your Wokwi project&#10;// Step 2: Click the diagram.json tab (the {} icon)&#10;// Step 3: Select All (Ctrl+A) and Copy (Ctrl+C)&#10;// Step 4: Click here and Paste (Ctrl+V)&#10;// Step 5: Click SAVE &amp; DISPLAY below"></textarea>
+      <div class="cactions">
+        <button class="btn-save" onclick="saveCode('diagram')">SAVE &amp; DISPLAY</button>
+        <button class="btn-clear" onclick="clearCode('diagram')">CLEAR</button>
+      </div>
+      <div class="csaved" id="saved-diagram">✓ diagram.json saved and displayed below</div>
+      <div class="cdisplay" id="cdisplay-diagram">
+        <div class="cdisplay-bar">
+          <span>diagram.json</span>
+          <button class="btn-copy" onclick="copyCode('diagram')">COPY CODE</button>
+        </div>
+        <pre class="crendered" id="cren-diagram"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="div">
+
+<section id="hardware">
+  <div class="sec-label">// 04 — Hardware</div>
+  <h2>Components &amp; Wiring</h2>
+  <div class="hw-wrap">
+    <table>
+      <thead><tr><th>Component</th><th>GPIO</th><th>Role</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>ESP32 DevKit V1</td><td class="pin">—</td><td>Microcontroller</td><td>Wokwi simulation</td></tr>
+        <tr><td>Green LED</td><td class="pin">GPIO 2</td><td>Weapon indicator</td><td>220Ω resistor in series</td></tr>
+        <tr><td>Red LED</td><td class="pin">GPIO 4</td><td>Altitude warning</td><td>220Ω resistor in series</td></tr>
+        <tr><td>Push Button 1</td><td class="pin">GPIO 18</td><td>Missile fire</td><td>Active LOW · internal pull-up</td></tr>
+        <tr><td>Push Button 2</td><td class="pin">GPIO 19</td><td>Machine gun burst</td><td>Active LOW · internal pull-up</td></tr>
+        <tr><td>Potentiometer</td><td class="pin">GPIO 34</td><td>Altitude input</td><td>ADC1 CH6 · 0–4095 range</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="div">
+
+<section id="tasks">
+  <div class="sec-label">// 05 — FreeRTOS Task Map</div>
+  <h2>Tasks, Priorities &amp; Deadlines</h2>
+  <div class="task-grid">
+    <div class="task-row hdr"><span>Task</span><span>Pri</span><span>Period</span><span>Type</span><span>Scenario</span></div>
+    <div class="task-row"><span class="tn">MissileBtn</span><span class="tp">3</span><span>10 ms poll</span><span class="tt hard">HARD</span><span class="tdesc">Detects missile button press with 50 ms debounce, posts to semaphore</span></div>
+    <div class="task-row"><span class="tn">GunBtn</span><span class="tp">3</span><span>10 ms poll</span><span class="tt hard">HARD</span><span class="tdesc">Detects gun button press with 50 ms debounce, posts to semaphore</span></div>
+    <div class="task-row"><span class="tn">WeaponEvent</span><span class="tp">2</span><span>10 ms</span><span class="tt hard">HARD</span><span class="tdesc">Drives weapon LED — single flash (missile) or 12-flash burst (guns)</span></div>
+    <div class="task-row"><span class="tn">AltitudeWarn</span><span class="tp">1</span><span>400–500 ms</span><span class="tt soft">SOFT</span><span class="tdesc">Reads potentiometer ADC, activates red LED and serial warning if too low</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>// F-35 Flight Sim · FreeRTOS ESP32 · James E. Thompson · UCF Spring 2026</p>
+  <div class="fl">
+    <a href="https://github.com/JamesEThompson/JamesEThompson.github.io" target="_blank">GitHub</a>
+    <a href="https://wokwi.com" target="_blank">Wokwi</a>
+    <a href="https://youtube.com/@JamesEThompson" target="_blank" id="ytFooterLink">YouTube</a>
+  </div>
+</footer>
+
+<script>
+// ── YOUTUBE ──────────────────────────────────────────────────
+function extractId(url) {
+  url = (url || '').trim();
+  let m;
+  if ((m = url.match(/youtu\.be\/([A-Za-z0-9_\-]{11})/)))   return m[1];
+  if ((m = url.match(/[?&]v=([A-Za-z0-9_\-]{11})/)))         return m[1];
+  if ((m = url.match(/embed\/([A-Za-z0-9_\-]{11})/)))        return m[1];
+  if (/^[A-Za-z0-9_\-]{11}$/.test(url))                      return url;
+  return null;
+}
+
+function embedVideo() {
+  var inp = document.getElementById('ytInput');
+  var id  = extractId(inp.value);
+  if (!id) {
+    inp.style.borderColor = 'var(--red)';
+    inp.placeholder = '⚠  Could not read a video ID — try pasting the full YouTube URL';
+    return;
+  }
+  inp.style.borderColor = 'var(--green)';
+  document.getElementById('ytIframe').src     = 'https://www.youtube.com/embed/' + id;
+  document.getElementById('vidPlaceholder').style.display = 'none';
+  document.getElementById('vidFrame').style.display       = 'block';
+  document.getElementById('ytSuccess').style.display      = 'block';
+  document.getElementById('ytFooterLink').href = 'https://youtube.com/watch?v=' + id;
+  try { localStorage.setItem('yt_id', id); } catch(e){}
+}
+
+document.getElementById('ytInput').addEventListener('keydown', function(e){ if(e.key==='Enter') embedVideo(); });
+
+// ── CODE ─────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['sketch','diagram'].forEach(function(t){
+    document.getElementById('cpanel-'+t).style.display = (t===tab)?'block':'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+}
+
+function saveCode(tab) {
+  var code = document.getElementById('ta-'+tab).value.trim();
+  if (!code) return;
+  var esc = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById('cren-'+tab).innerHTML      = esc;
+  document.getElementById('cdisplay-'+tab).style.display = 'block';
+  document.getElementById('saved-'+tab).style.display    = 'block';
+  try { localStorage.setItem('code_'+tab, code); } catch(e){}
+}
+
+function clearCode(tab) {
+  document.getElementById('ta-'+tab).value               = '';
+  document.getElementById('cdisplay-'+tab).style.display = 'none';
+  document.getElementById('saved-'+tab).style.display    = 'none';
+  try { localStorage.removeItem('code_'+tab); } catch(e){}
+}
+
+function copyCode(tab) {
+  var code = document.getElementById('ta-'+tab).value;
+  navigator.clipboard.writeText(code).then(function(){
+    var btn = event.target; btn.textContent='COPIED ✓';
+    setTimeout(function(){ btn.textContent='COPY CODE'; }, 2000);
+  });
+}
+
+// restore on load
+window.addEventListener('load', function(){
+  try {
+    var id = localStorage.getItem('yt_id');
+    if (id) { document.getElementById('ytInput').value='https://youtube.com/watch?v='+id; embedVideo(); }
+    ['sketch','diagram'].forEach(function(tab){
+      var c = localStorage.getItem('code_'+tab);
+      if (c) { document.getElementById('ta-'+tab).value=c; saveCode(tab); }
+    });
+  } catch(e){}
+});
+</script>
+</body>
+</html>

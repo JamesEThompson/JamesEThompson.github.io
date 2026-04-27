@@ -19,9 +19,9 @@
       --glow:      0 0 20px rgba(0,200,255,0.35);
       --glow2:     0 0 20px rgba(255,74,0,0.35);
     }
-
+ 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+ 
     body {
       background: var(--bg);
       color: var(--text);
@@ -30,7 +30,7 @@
       line-height: 1.7;
       overflow-x: hidden;
     }
-
+ 
     body::before {
       content: '';
       position: fixed; inset: 0;
@@ -44,7 +44,7 @@
       pointer-events: none;
       z-index: 999;
     }
-
+ 
     .grid-bg {
       position: fixed; inset: 0;
       background-image:
@@ -54,7 +54,7 @@
       pointer-events: none;
       z-index: 0;
     }
-
+ 
     nav {
       position: sticky; top: 0; z-index: 100;
       display: flex; align-items: center; justify-content: space-between;
@@ -82,7 +82,7 @@
       transition: color 0.2s;
     }
     .nav-links a:hover { color: var(--accent); }
-
+ 
     .hero {
       position: relative; z-index: 1;
       min-height: 100vh;
@@ -106,7 +106,7 @@
       0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
       50%      { transform: translate(-50%,-50%) scale(1.15); opacity: 0.6; }
     }
-
+ 
     .hero-tag {
       font-family: 'Share Tech Mono', monospace;
       font-size: 11px;
@@ -152,12 +152,12 @@
     .badge.accent { border-color: var(--accent); color: var(--accent); }
     .badge.red    { border-color: var(--accent2); color: var(--accent2); }
     .badge.green  { border-color: var(--green);   color: var(--green); }
-
+ 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(20px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
+ 
     section {
       position: relative; z-index: 1;
       max-width: 1000px;
@@ -184,14 +184,14 @@
       border-top: 1px solid var(--border);
       margin: 0;
     }
-
+ 
     .description-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
     @media (max-width: 640px) { .description-grid { grid-template-columns: 1fr; } }
-
+ 
     .desc-card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -214,7 +214,7 @@
     .desc-card.red::before   { background: var(--accent2); }
     .desc-card.green::before { background: var(--green); }
     .desc-card.yellow::before { background: #f0c040; }
-
+ 
     .desc-card h3 {
       font-family: 'Orbitron', monospace;
       font-size: 13px;
@@ -228,7 +228,7 @@
       color: var(--text);
       line-height: 1.75;
     }
-
+ 
     .full-desc {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -243,7 +243,7 @@
       margin-bottom: 16px;
     }
     .full-desc p:last-child { margin-bottom: 0; }
-
+ 
     .video-container {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -251,7 +251,7 @@
       overflow: hidden;
       box-shadow: var(--glow);
     }
-
+ 
     .hw-table {
       width: 100%;
       border-collapse: collapse;
@@ -276,7 +276,7 @@
     .hw-table tr:last-child td { border-bottom: none; }
     .hw-table tr:hover td { background: rgba(0,200,255,0.03); }
     .hw-table .pin { color: var(--accent); }
-
+ 
     .task-grid {
       display: flex;
       flex-direction: column;
@@ -316,7 +316,7 @@
       .task-row { grid-template-columns: 1fr 1fr; }
       .task-row.header { display: none; }
     }
-
+ 
     footer {
       position: relative; z-index: 1;
       border-top: 1px solid var(--border);
@@ -341,7 +341,7 @@
       transition: color 0.2s;
     }
     .footer-links a:hover { color: var(--accent); }
-
+ 
     .led-demo {
       display: flex; gap: 20px; align-items: center;
       margin-bottom: 32px;
@@ -376,7 +376,7 @@
 </head>
 <body>
   <div class="grid-bg"></div>
-
+ 
   <nav>
     <div class="nav-logo">F-35 // ESP32 Flight Sim</div>
     <div class="nav-links">
@@ -387,7 +387,7 @@
       <a href="https://github.com/JamesEThompson/JamesEThompson.github.io" target="_blank">GitHub ↗</a>
     </div>
   </nav>
-
+ 
   <div class="hero">
     <div class="hero-tag">// Northrop Grumman · Orlando, FL · Aerospace Simulation</div>
     <h1>F-35 <span>Flight Sim</span><br>on ESP32</h1>
@@ -404,13 +404,13 @@
       <span class="badge">Spring 2026 · UCF</span>
     </div>
   </div>
-
+ 
   <hr class="divider">
-
+ 
   <section id="about">
     <div class="section-label">// 01 — Project Description</div>
     <h2>What This Project Does</h2>
-
+ 
     <div class="full-desc">
       <p>
         This project simulates the real-time control systems found inside a modern fighter jet —
@@ -442,7 +442,7 @@
         undesirable but not catastrophic. This mirrors how real aerospace engineers classify requirements.
       </p>
     </div>
-
+ 
     <div class="description-grid">
       <div class="desc-card">
         <h3>🎯 Missile Fire</h3>
@@ -481,19 +481,19 @@
       </div>
     </div>
   </section>
-
+ 
   <hr class="divider">
-
+ 
   <section id="demo">
     <div class="section-label">// 02 — Demo Video</div>
     <h2>See It In Action</h2>
-
+ 
     <div class="led-demo">
       <div class="led green"></div><span class="led-label">WEAPON LED — gun burst</span>
       <div class="led red"></div><span class="led-label">ALTITUDE LED — warning active</span>
       <div class="led blue"></div><span class="led-label">HEARTBEAT LED — system nominal</span>
     </div>
-
+ 
     <div class="video-container">
       <div style="aspect-ratio:16/9;">
         <iframe
@@ -507,9 +507,9 @@
       </div>
     </div>
   </section>
-
+ 
   <hr class="divider">
-
+ 
   <section id="hardware">
     <div class="section-label">// 03 — Hardware</div>
     <h2>Components &amp; Wiring</h2>
@@ -576,9 +576,9 @@
       </table>
     </div>
   </section>
-
+ 
   <hr class="divider">
-
+ 
   <section id="tasks">
     <div class="section-label">// 04 — FreeRTOS Task Map</div>
     <h2>Tasks, Priorities &amp; Deadlines</h2>
@@ -641,7 +641,7 @@
       </div>
     </div>
   </section>
-
+ 
   <footer>
     <p>// F-35 Flight Sim · ESP32 FreeRTOS · James E. Thompson · UCF Spring 2026</p>
     <div class="footer-links">
@@ -650,6 +650,7 @@
       <a href="https://youtube.com/watch?v=Upjl0gR5IYc" target="_blank">YouTube</a>
     </div>
   </footer>
-
+ 
 </body>
 </html>
+ 

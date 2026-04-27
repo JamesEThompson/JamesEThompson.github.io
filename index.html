@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>F-35 Flight Sim — ESP32 FreeRTOS Project</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #080c10;
+      --panel:     #0d1520;
+      --border:    #1a2f4a;
+      --accent:    #00c8ff;
+      --accent2:   #ff4a00;
+      --green:     #00ff88;
+      --text:      #c8dce8;
+      --muted:     #4a6478;
+      --glow:      0 0 20px rgba(0,200,255,0.35);
+      --glow2:     0 0 20px rgba(255,74,0,0.35);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-weight: 300;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .grid-bg {
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,200,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,200,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px;
+      height: 56px;
+      background: rgba(8,12,16,0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+    .nav-logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 80px 24px 60px;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,200,255,0.08) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+      50%      { transform: translate(-50%,-50%) scale(1.15); opacity: 0.6; }
+    }
+
+    .hero-tag {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      animation: fadeUp 0.6s ease both;
+    }
+    .hero h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(32px, 6vw, 72px);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      color: #fff;
+      text-shadow: 0 0 40px rgba(0,200,255,0.4);
+      animation: fadeUp 0.6s 0.1s ease both;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero-sub {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 560px;
+      animation: fadeUp 0.6s 0.2s ease both;
+      margin-bottom: 40px;
+    }
+    .hero-badges {
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+    .badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      padding: 5px 14px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .badge.accent { border-color: var(--accent); color: var(--accent); }
+    .badge.red    { border-color: var(--accent2); color: var(--accent2); }
+    .badge.green  { border-color: var(--green);   color: var(--green); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    section {
+      position: relative; z-index: 1;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 80px 24px;
+    }
+    .section-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(20px, 3vw, 28px);
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 32px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    .description-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 640px) { .description-grid { grid-template-columns: 1fr; } }
+
+    .desc-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .desc-card:hover {
+      border-color: var(--accent);
+      box-shadow: var(--glow);
+    }
+    .desc-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0;
+      width: 3px; height: 100%;
+      background: var(--accent);
+    }
+    .desc-card.red::before   { background: var(--accent2); }
+    .desc-card.green::before { background: var(--green); }
+    .desc-card.yellow::before { background: #f0c040; }
+
+    .desc-card h3 {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    .desc-card p {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.75;
+    }
+
+    .full-desc {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 40px;
+      margin-bottom: 32px;
+    }
+    .full-desc p {
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.85;
+      margin-bottom: 16px;
+    }
+    .full-desc p:last-child { margin-bottom: 0; }
+
+    .video-container {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: var(--glow);
+    }
+
+    .hw-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+    }
+    .hw-table th {
+      text-align: left;
+      padding: 10px 16px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .hw-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(26,47,74,0.5);
+      color: var(--text);
+    }
+    .hw-table tr:last-child td { border-bottom: none; }
+    .hw-table tr:hover td { background: rgba(0,200,255,0.03); }
+    .hw-table .pin { color: var(--accent); }
+
+    .task-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .task-row {
+      display: grid;
+      grid-template-columns: 160px 60px 100px 80px 1fr;
+      gap: 16px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 20px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      transition: border-color 0.2s;
+    }
+    .task-row:hover { border-color: var(--accent); }
+    .task-row.header {
+      background: transparent;
+      border-color: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding-bottom: 4px;
+    }
+    .task-name   { color: #fff; font-weight: 700; }
+    .task-pri    { color: var(--accent); text-align: center; }
+    .task-period { color: var(--text); }
+    .task-type.hard { color: var(--accent2); }
+    .task-type.soft { color: var(--green); }
+    .task-type.isr  { color: #f0c040; }
+    .task-desc   { color: var(--muted); font-size: 11px; }
+    @media (max-width: 700px) {
+      .task-row { grid-template-columns: 1fr 1fr; }
+      .task-row.header { display: none; }
+    }
+
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    footer p {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    .led-demo {
+      display: flex; gap: 20px; align-items: center;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+    .led { width: 14px; height: 14px; border-radius: 50%; }
+    .led.green {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: blink-gun 0.1s step-end infinite;
+    }
+    .led.red {
+      background: var(--accent2);
+      box-shadow: 0 0 10px var(--accent2);
+      animation: blink-alt 1.2s ease-in-out infinite;
+    }
+    .led.blue {
+      background: #00c8ff;
+      box-shadow: 0 0 10px #00c8ff;
+      animation: blink-heart 1s ease-in-out infinite;
+    }
+    .led-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+    @keyframes blink-gun   { 0%,49%{opacity:1} 50%,100%{opacity:0.1} }
+    @keyframes blink-alt   { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    @keyframes blink-heart { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <nav>
+    <div class="nav-logo">F-35 // ESP32 Flight Sim</div>
+    <div class="nav-links">
+      <a href="#about">About</a>
+      <a href="#demo">Demo</a>
+      <a href="#hardware">Hardware</a>
+      <a href="#tasks">Tasks</a>
+      <a href="https://github.com/JamesEThompson/JamesEThompson.github.io" target="_blank">GitHub ↗</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-tag">// Northrop Grumman · Orlando, FL · Aerospace Simulation</div>
+    <h1>F-35 <span>Flight Sim</span><br>on ESP32</h1>
+    <p class="hero-sub">
+      A real-time embedded system simulating fighter jet weapon controls, altitude warning,
+      and emergency eject — built with FreeRTOS on an ESP32 microcontroller.
+    </p>
+    <div class="hero-badges">
+      <span class="badge accent">FreeRTOS</span>
+      <span class="badge accent">ESP32</span>
+      <span class="badge">6 Tasks + 1 ISR</span>
+      <span class="badge red">Hard Deadlines</span>
+      <span class="badge green">Wokwi Simulated</span>
+      <span class="badge">Spring 2026 · UCF</span>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <section id="about">
+    <div class="section-label">// 01 — Project Description</div>
+    <h2>What This Project Does</h2>
+
+    <div class="full-desc">
+      <p>
+        This project simulates the real-time control systems found inside a modern fighter jet —
+        specifically inspired by the avionics and weapon management systems used in programs like
+        Northrop Grumman's aerospace work in Orlando, Florida. It runs on an ESP32 microcontroller
+        using FreeRTOS, the same type of real-time operating system used in safety-critical embedded
+        systems across aerospace and defense.
+      </p>
+      <p>
+        The system has two weapon controls: a <strong style="color:#fff;">missile button</strong> that
+        fires a single weapon (one LED flash), and a <strong style="color:#fff;">machine gun button</strong>
+        that simulates a cannon burst (36 rapid LED flashes). A <strong style="color:#fff;">potentiometer
+        acts as an altimeter</strong> — turn it below 25% and a red LED activates alongside repeated
+        altitude warnings in the serial monitor, just like a real aircraft's ground proximity warning system.
+      </p>
+      <p>
+        A dedicated <strong style="color:#fff;">emergency eject button</strong> is wired directly to a
+        hardware interrupt on GPIO 23. When pressed, it bypasses the normal task scheduler entirely and
+        fires an ISR instantly — the highest priority response in the entire system, simulating a pilot
+        ejection sequence. A separate <strong style="color:#fff;">heartbeat LED</strong> on GPIO 26 blinks
+        every 500 ms to prove the system is meeting its hard deadlines in real time. Attach the Wokwi
+        Logic Analyzer to GPIO 26 to verify the timing on an oscilloscope-style display.
+      </p>
+      <p>
+        Each feature runs as its own FreeRTOS task with a defined priority and deadline.
+        The weapon and eject tasks are <strong style="color:#ff4a00;">Hard real-time</strong> — a missed
+        deadline means a failed weapon system or a failed eject sequence. The altitude monitor and
+        heartbeat are <strong style="color:#00ff88;">Soft real-time</strong> — a slight delay is
+        undesirable but not catastrophic. This mirrors how real aerospace engineers classify requirements.
+      </p>
+    </div>
+
+    <div class="description-grid">
+      <div class="desc-card">
+        <h3>🎯 Missile Fire</h3>
+        <p>Press the green button and the weapon LED lights for 300 ms — one missile away.
+           A binary semaphore ensures the button task and LED task never conflict. Can also
+           be triggered remotely from the WiFi web page.</p>
+      </div>
+      <div class="desc-card red">
+        <h3>🔫 Machine Gun Burst</h3>
+        <p>Press the yellow button to trigger 36 rapid LED flashes simulating cannon rounds.
+           Execution time varies with burst count — a true variable-time FreeRTOS task.</p>
+      </div>
+      <div class="desc-card green">
+        <h3>⚠️ Altitude Warning</h3>
+        <p>Turn the potentiometer low and the red LED activates. The serial monitor floods
+           with timestamped ALTITUDE warnings — just like a GPWS in a real cockpit.
+           Altitude data is also passed to the weapon task via an internal queue.</p>
+      </div>
+      <div class="desc-card red">
+        <h3>🚨 Emergency Eject ISR</h3>
+        <p>The red eject button on GPIO 23 fires a hardware interrupt — the fastest possible
+           response in the system. It bypasses all task scheduling and immediately triggers
+           the eject sequence, flashing both LEDs 10 times to signal ejection.</p>
+      </div>
+      <div class="desc-card">
+        <h3>💙 Heartbeat Monitor</h3>
+        <p>A dedicated blue LED on GPIO 26 toggles every 500 ms. This is the determinism proof —
+           if the heartbeat stays consistent, all hard deadlines are being met. Attach the
+           Wokwi Logic Analyzer to GPIO 26 for full credit verification.</p>
+      </div>
+      <div class="desc-card">
+        <h3>🔧 Built With FreeRTOS</h3>
+        <p>Six concurrent tasks plus a hardware ISR run simultaneously on the ESP32,
+           each with defined priorities so critical systems always preempt lower-priority ones.
+           WiFi connects to Wokwi-GUEST and serves a live control page.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section id="demo">
+    <div class="section-label">// 02 — Demo Video</div>
+    <h2>See It In Action</h2>
+
+    <div class="led-demo">
+      <div class="led green"></div><span class="led-label">WEAPON LED — gun burst</span>
+      <div class="led red"></div><span class="led-label">ALTITUDE LED — warning active</span>
+      <div class="led blue"></div><span class="led-label">HEARTBEAT LED — system nominal</span>
+    </div>
+
+    <div class="video-container">
+      <div style="aspect-ratio:16/9;">
+        <iframe
+          src="https://www.youtube.com/embed/Upjl0gR5IYc"
+          title="F-35 ESP32 Flight Sim Demo"
+          width="100%" height="100%"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+          style="border:none; display:block;">
+        </iframe>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section id="hardware">
+    <div class="section-label">// 03 — Hardware</div>
+    <h2>Components &amp; Wiring</h2>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+      <table class="hw-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>GPIO Pin</th>
+            <th>Role</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ESP32 DevKit V1</td>
+            <td class="pin">—</td>
+            <td>Microcontroller</td>
+            <td>Wokwi simulation</td>
+          </tr>
+          <tr>
+            <td>Green LED</td>
+            <td class="pin">GPIO 2</td>
+            <td>Weapon indicator</td>
+            <td>220Ω resistor in series</td>
+          </tr>
+          <tr>
+            <td>Red LED</td>
+            <td class="pin">GPIO 4</td>
+            <td>Altitude warning</td>
+            <td>220Ω resistor in series</td>
+          </tr>
+          <tr>
+            <td>Blue LED</td>
+            <td class="pin">GPIO 26</td>
+            <td>Heartbeat monitor</td>
+            <td>220Ω resistor · toggles every 500ms · Logic Analyzer proof</td>
+          </tr>
+          <tr>
+            <td>Push Button 1</td>
+            <td class="pin">GPIO 18</td>
+            <td>Missile fire</td>
+            <td>Active LOW · internal pull-up</td>
+          </tr>
+          <tr>
+            <td>Push Button 2</td>
+            <td class="pin">GPIO 19</td>
+            <td>Machine gun burst</td>
+            <td>Active LOW · internal pull-up</td>
+          </tr>
+          <tr>
+            <td>Push Button 3</td>
+            <td class="pin">GPIO 23</td>
+            <td>Emergency eject ISR</td>
+            <td>Active LOW · hardware interrupt · NEGEDGE trigger</td>
+          </tr>
+          <tr>
+            <td>Potentiometer</td>
+            <td class="pin">GPIO 34</td>
+            <td>Altitude input</td>
+            <td>ADC1 CH6 · 0–4095 range</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <section id="tasks">
+    <div class="section-label">// 04 — FreeRTOS Task Map</div>
+    <h2>Tasks, Priorities &amp; Deadlines</h2>
+    <div class="task-grid">
+      <div class="task-row header">
+        <span>Task</span>
+        <span>Priority</span>
+        <span>Period</span>
+        <span>Type</span>
+        <span>Scenario</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">Eject ISR</span>
+        <span class="task-pri">HW</span>
+        <span class="task-period">Aperiodic</span>
+        <span class="task-type isr">ISR</span>
+        <span class="task-desc">Hardware interrupt on GPIO 23 — instant eject trigger, bypasses scheduler entirely</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">EjectTask</span>
+        <span class="task-pri">4</span>
+        <span class="task-period">Aperiodic</span>
+        <span class="task-type hard">HARD</span>
+        <span class="task-desc">Responds to ejectSem from ISR — flashes both LEDs 10x to simulate pilot ejection sequence</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">MissileBtn</span>
+        <span class="task-pri">3</span>
+        <span class="task-period">10 ms poll</span>
+        <span class="task-type hard">HARD</span>
+        <span class="task-desc">Polls GPIO 18 with 50 ms debounce — posts to missileSem on press</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">GunBtn</span>
+        <span class="task-pri">3</span>
+        <span class="task-period">10 ms poll</span>
+        <span class="task-type hard">HARD</span>
+        <span class="task-desc">Polls GPIO 19 with 50 ms debounce — posts to gunSem on press</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">WeaponTask</span>
+        <span class="task-pri">2</span>
+        <span class="task-period">10 ms</span>
+        <span class="task-type hard">HARD</span>
+        <span class="task-desc">Drives weapon LED — single flash (missile) or variable 36-flash burst (gun) · reads xAltQueue</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">AltitudeTask</span>
+        <span class="task-pri">1</span>
+        <span class="task-period">400–500 ms</span>
+        <span class="task-type soft">SOFT</span>
+        <span class="task-desc">Reads potentiometer ADC · sends readings to xAltQueue · activates red LED if too low</span>
+      </div>
+      <div class="task-row">
+        <span class="task-name">HeartbeatTask</span>
+        <span class="task-pri">1</span>
+        <span class="task-period">1000 ms</span>
+        <span class="task-type soft">SOFT</span>
+        <span class="task-desc">Toggles GPIO 26 every 500 ms — attach Wokwi Logic Analyzer for determinism proof</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>// F-35 Flight Sim · ESP32 FreeRTOS · James E. Thompson · UCF Spring 2026</p>
+    <div class="footer-links">
+      <a href="https://github.com/JamesEThompson/JamesEThompson.github.io" target="_blank">GitHub</a>
+      <a href="https://wokwi.com" target="_blank">Wokwi</a>
+      <a href="https://youtube.com/watch?v=Upjl0gR5IYc" target="_blank">YouTube</a>
+    </div>
+  </footer>
+
+</body>
+</html>
